@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  rabbit1:
+    image: rabbitmq:3.8-management-alpine
+    container_name: rabbit1
+    hostname: rabbit1
+    restart: unless-stopped
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_ERLANG_COOKIE: cookie_for_clustering
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbit1-etc:/etc/rabbitmq/
+      - rabbit1-data:/var/lib/rabbitmq/
+      - rabbit1-logs:/var/log/rabbitmq/
+volumes:
+  rabbit1-etc:
+  rabbit1-data:
+  rabbit1-logs:
+networks:
+  default:
+    name: rabbit-net
