@@ -45,7 +45,7 @@ namespace Rabbit.Example5.Producer
                     .SetRoutingKey(topic)
                     .SetTopic(topic)
                     .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
+                    .Display(Color.Cyan);
 
                 await Task.Delay(millisecondsDelay: 5000);
             }

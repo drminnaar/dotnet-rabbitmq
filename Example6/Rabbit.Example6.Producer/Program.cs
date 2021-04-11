@@ -50,7 +50,7 @@ namespace Rabbit.Example6.Producer
                     .SetExchange(ExchangeName)
                     .SetHeaders(properties.Headers.ToDictionary(header => header.Key, header => header.Value))
                     .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
+                    .Display(Color.Cyan);
 
                 await Task.Delay(millisecondsDelay: 5000);
             }
