@@ -174,10 +174,25 @@ docker container run \
   --env RABBITMQ_DEFAULT_PASS=password \
   --network rabbit-net \
   rabbitmq:3.8-management-alpine
+```
 
+#### Connect Using rabbitmqadmin
+
+```bash
 # connect to rabbitmq server
 rabbitmqadmin -u admin -p password list vhosts
 rabbitmqadmin -u admin -p password list exchanges
+```
+
+#### Connect Using Web RabbitMQ Manager
+
+```powershell
+# open the following url in your browser
+http://localhost:15672
+
+# enter credentials
+username: admin
+password: password
 ```
 
 ### Docker Compose
@@ -233,6 +248,25 @@ rabbitmqadmin -u admin -p password list vhosts
 rabbitmqadmin -u admin -p password list exchanges
 ```
 
+#### Connect Using rabbitmqadmin
+
+```bash
+# connect to rabbitmq server
+rabbitmqadmin -u admin -p password list vhosts
+rabbitmqadmin -u admin -p password list exchanges
+```
+
+#### Connect Using Web RabbitMQ Manager
+
+```powershell
+# open the following url in your browser
+http://localhost:15672
+
+# enter credentials
+username: admin
+password: password
+```
+
 ### Local
 
 Please find the install for your platform (OS) of choice.
@@ -247,33 +281,37 @@ This is the easiest way to get up and rinning with RabbitMQ. No installation or 
 - [CloudAMQP Free Plan]
 - [CloudAMQP Signup]
 
-### Connect Using Web Admin
+![cloudamqp-dashboard](https://user-images.githubusercontent.com/33935506/115089110-b741fb00-9f65-11eb-9d7f-7dffca1e376b.png)
 
-TODO: Connect to CloudAMQP using Web Admin
+#### Connect Using Web Admin
 
-### Connect Using CLI
+![cloudamqp-manager-1](https://user-images.githubusercontent.com/33935506/115089671-db520c00-9f66-11eb-89bc-0d1836f69147.png)
+
+![cloudamqp-manager-2](https://user-images.githubusercontent.com/33935506/115089673-dbeaa280-9f66-11eb-8a07-35189a7500c9.png)
+
+#### Connect Using CLI
 
 ```bash
 # list exchanges
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm list exchanges
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME list exchanges
 
 # create queue
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm declare queue name=example.messages auto_delete=false durable=false
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME declare queue name=example.messages auto_delete=false durable=false
 
 # list queues
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm list queues
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME list queues
 
 # publish message to queue
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm publish routing_key=example.messages payload="Hello World"
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME publish routing_key=example.messages payload="Hello World"
 
 # list messages in queue
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm get queue=messages count=1
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME get queue=messages count=1
 
 # purge queue
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm purge queue name=example.messages
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME purge queue name=example.messages
 
 # delete queue
-rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=rdpnqczm --password=jUUDLyS_A1c0De-qQyigfTZDyaoRuUo6 -V rdpnqczm delete queue name=example.messages
+rabbitmqadmin --host=your-custom-host.rmq.cloudamqp.com --port=443 --ssl --username=YOUR_USERNAME --password=YOUR_PASSWORD -V YOUR_USERNAME delete queue name=example.messages
 ```
 
 ---
