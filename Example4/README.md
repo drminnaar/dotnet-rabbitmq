@@ -4,7 +4,6 @@
 
 - [Overview](#overview)
 - [Characteristics](#characteristics)
-- [Flow](#flow)
 - [Example Solution](#example-solution)
 - [Running the Example](#running-the-example)
 
@@ -22,23 +21,9 @@
 
 ---
 
-## Flow
-
-![rmq-pubsub](https://user-images.githubusercontent.com/33935506/98722034-e02df500-23f5-11eb-88f4-982b2b3621ad.png)
-
-- TODO
-
----
-
 ## Example Solution
 
 There are 2 parts to the solution. A _Producer_ and a _Consumer_. The _Producer_ is a .Net Core Console Application that sends _trades_ to a queue at a specific interval. The _Consumer_ is a .NET Core Console application that waits and consumes messages as messages arrive on the queue.
-
-The RabbitMQ .NET client is the official client library for C#. The following links provide more information:
-
-- [RabbitMQ Client NuGet](https://www.nuget.org/packages/RabbitMQ.Client)
-- [RabbitMQ Client Source Repository](https://github.com/rabbitmq/rabbitmq-dotnet-client)
-- [RabbitMQ Client Project Site](https://github.com/rabbitmq/rabbitmq-dotnet-client)
 
 The following 2 sections, _Producer_ and _Consumer_, highlight the code required to interact with _RabbitMQ_
 
@@ -72,18 +57,30 @@ var queueName = channel.QueueDeclare().QueueName;
 #### Step 4 - Declare Exchange
 
 ```csharp
-const string ExchangeName = "example3_forecasts_exchange";
+const string ExchangeName = "example4_trades_exchange";
 
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+channel.ExchangeDeclare(
+    exchange: ExchangeName,
+    type: ExchangeType.Direct,
+    durable: false,
+    autoDelete: false,
+    arguments: ImmutableDictionary<string, object>.Empty);
 ```
 
 #### Step 5 - Create Binding
 
 ```csharp
+var queue = channel.QueueDeclare(
+    queue: QueueNames[region],
+    durable: false,
+    exclusive: false,
+    autoDelete: false,
+    arguments: ImmutableDictionary<string, object>.Empty);
+
 channel.QueueBind(
-    queue: queueName,
+    queue: queue.QueueName,
     exchange: ExchangeName,
-    routingKey: string.Empty);
+    routingKey: region);
 ```
 
 #### Step 6 - Create Consumer
@@ -93,13 +90,13 @@ var consumer = new EventingBasicConsumer(channel);
 
 consumer.Received += (sender, eventArgs) =>
 {
-    var body = eventArgs.Body.ToArray();
-    var forecast = Forecast.FromBytes(body);
+    var messageBody = eventArgs.Body.ToArray();
+    var trade = Trade.FromBytes(messageBody);
 
-    DisplayInfo<Forecast>
-        .For(forecast)
+    DisplayInfo<Trade>
+        .For(trade)
         .SetExchange(eventArgs.Exchange)
-        .SetQueue(queueName)
+        .SetQueue(queue.QueueName)
         .SetRoutingKey(eventArgs.RoutingKey)
         .SetVirtualHost(connectionFactory.VirtualHost)
         .Display(Color.Yellow);
@@ -112,7 +109,7 @@ consumer.Received += (sender, eventArgs) =>
 
 ```csharp
 channel.BasicConsume(
-    queue: queueName,
+    queue: queue.QueueName,
     autoAck: false,
     consumer: consumer);
 ```
@@ -126,6 +123,90 @@ channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
 #### Full Listing
 
 ```csharp
+internal sealed class Program
+{
+    private static void Main(string[] regions)
+    {
+        Console.WriteLine("\nEXAMPLE 4 : ROUTING : CONSUMER");
+
+        var region = regions.FirstOrDefault() ?? string.Empty;
+
+        var QueueNames = TradeData
+            .Regions
+            .Select(region =>
+            {
+                var normalizedRegion = region.Normalize().ToLower().Trim().Replace(" ", string.Empty);
+                var queueName = $"example4_trades_{normalizedRegion}_queue";
+                return new KeyValuePair<string, string>(region, queueName);
+            })
+            .ToImmutableDictionary();
+
+        if (!QueueNames.ContainsKey(region))
+        {
+            Console.WriteLine($"\nInvalid region '{region}'.".Pastel(Color.Tomato));
+            Console.WriteLine($"Enter valid region name to start ({string.Join(", ", QueueNames.Keys)})".Pastel(Color.Tomato));
+            Console.WriteLine();
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        var connectionFactory = new ConnectionFactory
+        {
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
+
+        using var connection = connectionFactory.CreateConnection();
+
+        using var channel = connection.CreateModel();
+
+        const string ExchangeName = "example4_trades_exchange";
+
+        channel.ExchangeDeclare(
+            exchange: ExchangeName,
+            type: ExchangeType.Direct,
+            durable: false,
+            autoDelete: false,
+            arguments: ImmutableDictionary<string, object>.Empty);
+
+        var queue = channel.QueueDeclare(
+            queue: QueueNames[region],
+            durable: false,
+            exclusive: false,
+            autoDelete: false,
+            arguments: ImmutableDictionary<string, object>.Empty);
+
+        channel.QueueBind(
+            queue: queue.QueueName,
+            exchange: ExchangeName,
+            routingKey: region);
+
+        var consumer = new EventingBasicConsumer(channel);
+        consumer.Received += (sender, eventArgs) =>
+        {
+            var messageBody = eventArgs.Body.ToArray();
+            var trade = Trade.FromBytes(messageBody);
+
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(eventArgs.Exchange)
+                .SetQueue(queue.QueueName)
+                .SetRoutingKey(eventArgs.RoutingKey)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Yellow);
+
+            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+        };
+
+        channel.BasicConsume(
+            queue: queue.QueueName,
+            autoAck: false,
+            consumer: consumer);
+
+        Console.ReadLine();
+    }
+}
 ```
 
 ### Producer
@@ -152,24 +233,138 @@ using var channel = connection.CreateModel();
 #### Step 3 - Declare Exchange
 
 ```csharp
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+const string ExchangeName = "example4_trades_exchange";
+
+channel.ExchangeDeclare(
+    exchange: ExchangeName,
+    type: ExchangeType.Direct,
+    durable: false,
+    autoDelete: false,
+    arguments: ImmutableDictionary<string, object>.Empty);
 ```
 
-#### Step 4 - Create and Publish Message
+#### Step 4 - Create Bindings
 
 ```csharp
-var forecast = Thermometer.Fake().Report();
+var QueueNames = TradeData
+    .Regions
+    .Select(region =>
+    {
+        var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
+        var queueName = $"example4_trades_{normalizedRegion}_queue";
+        return new KeyValuePair<string, string>(region, queueName);
+    })
+    .ToImmutableDictionary();
+
+foreach (var region in TradeData.Regions)
+{
+    var queue = channel.QueueDeclare(
+        queue: QueueNames[region],
+        durable: false,
+        exclusive: false,
+        autoDelete: false,
+        arguments: ImmutableDictionary<string, object>.Empty);
+
+    channel.QueueBind(
+        queue: queue.QueueName,
+        exchange: ExchangeName,
+        routingKey: region,
+        arguments: ImmutableDictionary<string, object>.Empty);
+}
+```
+
+#### Step 5 - Create and Publish Message
+
+```csharp
+var trade = TradeData.GetFakeTrade();
+
+string routingKey = trade.Region;
 
 channel.BasicPublish(
     exchange: ExchangeName,
-    routingKey: QueueName,
-    body: Encoding.UTF8.GetBytes(forecast.ToJson())
+    routingKey: routingKey,
+    body: trade.ToBytes()
 );
 ```
 
 #### Full Listing
 
 ```csharp
+internal sealed class Program
+{
+    private static async Task Main()
+    {
+        Console.WriteLine("EXAMPLE 4 : ROUTING : PRODUCER");
+
+        var connectionFactory = new ConnectionFactory
+        {
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
+
+        using var connection = connectionFactory.CreateConnection();
+
+        using var channel = connection.CreateModel();
+
+        const string ExchangeName = "example4_trades_exchange";
+
+        channel.ExchangeDeclare(
+            exchange: ExchangeName,
+            type: ExchangeType.Direct,
+            durable: false,
+            autoDelete: false,
+            arguments: ImmutableDictionary<string, object>.Empty);
+
+        var QueueNames = TradeData
+            .Regions
+            .Select(region =>
+            {
+                var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
+                var queueName = $"example4_trades_{normalizedRegion}_queue";
+                return new KeyValuePair<string, string>(region, queueName);
+            })
+            .ToImmutableDictionary();
+
+        foreach (var region in TradeData.Regions)
+        {
+            var queue = channel.QueueDeclare(
+                queue: QueueNames[region],
+                durable: false,
+                exclusive: false,
+                autoDelete: false,
+                arguments: ImmutableDictionary<string, object>.Empty);
+
+            channel.QueueBind(
+                queue: queue.QueueName,
+                exchange: ExchangeName,
+                routingKey: region,
+                arguments: ImmutableDictionary<string, object>.Empty);
+        }
+
+        while (true)
+        {
+            var trade = TradeData.GetFakeTrade();
+
+            string routingKey = trade.Region;
+
+            channel.BasicPublish(
+                exchange: ExchangeName,
+                routingKey: routingKey,
+                body: trade.ToBytes()
+            );
+
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(ExchangeName)
+                .SetRoutingKey(routingKey)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Yellow);
+
+            await Task.Delay(millisecondsDelay: 3000);
+        }
+    }
+}
 ```
 
 ---
@@ -178,11 +373,11 @@ channel.BasicPublish(
 
 ### Source Code Repository
 
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/rabbitmq-dotnet-examples)
+All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
 
 ```bash
 
-git clone https://github.com/drminnaar/rabbitmq-dotnet-examples.git
+git clone https://github.com/drminnaar/dotnet-rabbitmq.git
 
 ```
 
@@ -229,7 +424,7 @@ dotnet run -p ./Example4/Rabbit.Example4.Producer/
 ```bash
 
 # open new terminal and run the following command
-dotnet run -p ./Example4/Rabbit.Example4.Consumer/
+dotnet run "Australia" -p ./Example4/Rabbit.Example4.Consumer/
 
 ```
 
@@ -238,7 +433,7 @@ dotnet run -p ./Example4/Rabbit.Example4.Consumer/
 ```bash
 
 # open new terminal and run the following command
-dotnet run -p ./Example4/Rabbit.Example4.Consumer/
+dotnet run "Great Britain" -p ./Example4/Rabbit.Example4.Consumer/
 
 ```
 
@@ -247,10 +442,12 @@ dotnet run -p ./Example4/Rabbit.Example4.Consumer/
 ```bash
 
 # open new terminal and run the following command
-dotnet run -p ./Example4/Rabbit.Example4.Consumer/
+dotnet run "USA" -p ./Example4/Rabbit.Example4.Consumer/
 
 ```
 
 ### Display
 
-![rmq-worker-output](https://user-images.githubusercontent.com/33935506/98651080-a2ea4880-239e-11eb-98a4-96faeea91534.png)
+![example-routing-1](https://user-images.githubusercontent.com/33935506/115109909-ac6e8100-9fcc-11eb-9fb2-b0a7337f274a.png)
+
+![example-routing-2](https://user-images.githubusercontent.com/33935506/115109911-ae384480-9fcc-11eb-99fc-628c901fefef.png)

@@ -79,7 +79,7 @@ namespace Rabbit.Example4.Producer
                     .SetExchange(ExchangeName)
                     .SetRoutingKey(routingKey)
                     .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
+                    .Display(Color.Cyan);
 
                 await Task.Delay(millisecondsDelay: 3000);
             }

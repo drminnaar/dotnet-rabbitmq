@@ -18,8 +18,8 @@ namespace Rabbit.Example5.Consumer
             {
                 Console.WriteLine("\nMessage type not specified. Try the following:".Pastel(Color.Tomato));
                 Console.WriteLine("  - dotnet run # (match all)".Pastel(Color.Tomato));
-                Console.WriteLine("  - dotnet run australia.* (match australia.software, australia.banking etc)".Pastel(Color.Tomato));
-                Console.WriteLine("  - dotnet run *.software (match usa.software, greatbritain.software etc)".Pastel(Color.Tomato));
+                Console.WriteLine("  - dotnet run australia.*.buy (match australia.software.buy, australia.banking.buy etc)".Pastel(Color.Tomato));
+                Console.WriteLine("  - dotnet run *.software.sell (match usa.software.sell, greatbritain.software.sell etc)".Pastel(Color.Tomato));
                 Console.WriteLine();
                 Environment.ExitCode = 1;
                 return;
@@ -52,7 +52,7 @@ namespace Rabbit.Example5.Consumer
             }
 
             var consumer = new EventingBasicConsumer(channel);
-            
+
             consumer.Received += (sender, eventArgs) =>
             {
                 var messageBody = eventArgs.Body.ToArray();

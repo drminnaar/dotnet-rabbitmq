@@ -4,7 +4,6 @@
 
 - [Overview](#overview)
 - [Characteristics](#characteristics)
-- [Flow](#flow)
 - [Example Solution](#example-solution)
 - [Running the Example](#running-the-example)
 
@@ -12,7 +11,7 @@
 
 ## Overview
 
-- TODO
+![rmq-pubsub](https://user-images.githubusercontent.com/33935506/98722034-e02df500-23f5-11eb-88f4-982b2b3621ad.png)
 
 ---
 
@@ -22,23 +21,9 @@
 
 ---
 
-## Flow
-
-![rmq-pubsub](https://user-images.githubusercontent.com/33935506/98722034-e02df500-23f5-11eb-88f4-982b2b3621ad.png)
-
-- TODO
-
----
-
 ## Example Solution
 
-There are 2 parts to the solution. A _Producer_ and a _Consumer_. The _Producer_ is a .Net Core Console Application that sends _trades_ to a queue at a specific interval. The _Consumer_ is a .NET Core Console application that waits and consumes messages as messages arrive on the queue.
-
-The RabbitMQ .NET client is the official client library for C#. The following links provide more information:
-
-- [RabbitMQ Client NuGet](https://www.nuget.org/packages/RabbitMQ.Client)
-- [RabbitMQ Client Source Repository](https://github.com/rabbitmq/rabbitmq-dotnet-client)
-- [RabbitMQ Client Project Site](https://github.com/rabbitmq/rabbitmq-dotnet-client)
+There are 2 parts to the solution. A _Producer_ and a _Consumer_. The _Producer_ is a .Net Core Console Application that sends _forecasts_ to a queue at a specific interval. The _Consumer_ is a .NET Core Console application that waits and consumes messages as messages arrive on the queue.
 
 The following 2 sections, _Producer_ and _Consumer_, highlight the code required to interact with _RabbitMQ_
 
