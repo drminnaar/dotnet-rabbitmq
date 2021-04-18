@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 
 namespace Rabbit.Example6.Consumer
 {
@@ -15,7 +16,7 @@ namespace Rabbit.Example6.Consumer
 
         private static void Main()
         {
-            Console.WriteLine($"\nEXAMPLE 6 : HEADERS : CONSUMER");
+            Console.WriteLine("\nEXAMPLE 6 : HEADERS : CONSUMER");
 
             var headers = GetHeadersFromInput();
 
@@ -45,11 +46,13 @@ namespace Rabbit.Example6.Consumer
                 var messageBody = eventArgs.Body.ToArray();
 
                 var trade = Trade.FromBytes(messageBody);
-                
+
                 DisplayInfo<Trade>
                     .For(trade)
                     .SetExchange(ExchangeName)
-                    .SetHeaders(eventArgs.BasicProperties.Headers.ToDictionary(header => header.Key, header => header.Value))
+                    .SetHeaders(eventArgs.BasicProperties.Headers.ToDictionary(
+                        header => header.Key,
+                        header => (object)Encoding.UTF8.GetString((byte[])header.Value)))
                     .SetQueue(queue.QueueName)
                     .SetRoutingKey(eventArgs.RoutingKey)
                     .SetVirtualHost(connectionFactory.VirtualHost)
@@ -80,12 +83,12 @@ namespace Rabbit.Example6.Consumer
                 headers.Add("x-match", matchExpression);
 
                 Console.Write("\nEnter region (Australia, Great Britain, USA): ");
-                var region = Console.ReadLine() ?? "";
+                var region = Console.ReadLine()?.ToLower() ?? "";
                 if (TradeData.ContainsRegion(region))
                     headers.Add("region", region);
 
                 Console.Write("Enter industry (Banking, Financial Services, Software): ");
-                var industry = Console.ReadLine() ?? "";
+                var industry = Console.ReadLine()?.ToLower() ?? "";
                 if (TradeData.ContainsIndustry(industry))
                     headers.Add("industry", industry);
 

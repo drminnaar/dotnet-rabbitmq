@@ -331,15 +331,6 @@ dotnet run -p ./Example3/Rabbit.Example3.Consumer/
 
 ```
 
-### Start Worker 3
-
-```bash
-
-# open new terminal and run the following command
-dotnet run -p ./Example3/Rabbit.Example3.Consumer/
-
-```
-
 ### Display
 
-![rmq-worker-output](https://user-images.githubusercontent.com/33935506/98651080-a2ea4880-239e-11eb-98a4-96faeea91534.png)
+![example-pubsub-1](https://user-images.githubusercontent.com/33935506/115130034-12e0b700-a040-11eb-90aa-b6b2126fadbc.png)

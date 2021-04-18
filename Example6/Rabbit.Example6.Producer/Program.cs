@@ -13,7 +13,7 @@ namespace Rabbit.Example6.Producer
     {
         private static async Task Main()
         {
-            Console.WriteLine($"EXAMPLE 6 : HEADERS : PRODUCER");
+            Console.WriteLine("EXAMPLE 6 : HEADERS : PRODUCER");
 
             var connectionFactory = new ConnectionFactory
             {
@@ -44,7 +44,7 @@ namespace Rabbit.Example6.Producer
                     routingKey: string.Empty,
                     basicProperties: properties,
                     body: trade.ToBytes());
-                
+
                 DisplayInfo<Trade>
                     .For(trade)
                     .SetExchange(ExchangeName)

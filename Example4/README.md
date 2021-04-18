@@ -11,13 +11,13 @@
 
 ## Overview
 
-- TODO
+![example-routing-overview](https://user-images.githubusercontent.com/33935506/115131049-e715ff00-a048-11eb-8d05-82c30d665072.png)
 
 ---
 
 ## Characteristics
 
-- TODO
+The _Routing Message Pattern_ uses a _Direct Exchange_, and captures the idea of allowing _Consumers_ to receive messages selectively. The _Producer_ publishes messages using various _Routing Keys_ to a _Direct Exchange_. _Consumers_ selectively subscribe to messages of interest using specific _Routing Keys_.
 
 ---
 

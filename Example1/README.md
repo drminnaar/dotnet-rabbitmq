@@ -42,12 +42,6 @@ The easiest way to use _RabbitMQ_ is to implement the _One-Way Messaging_ patter
 
 There are 2 parts to the solution. A _Producer_ and a _Consumer_. The _Producer_ is a .NET Core Console Application that sends _trades_ to a queue at a specific interval. The _Consumer_ is a .NET Core Console application that waits and consumes messages from the queue.
 
-The RabbitMQ .NET client is the official client library for C#. The following links provide more information:
-
-- [RabbitMQ Client NuGet](https://www.nuget.org/packages/RabbitMQ.Client)
-- [RabbitMQ Client Source Repository](https://github.com/rabbitmq/rabbitmq-dotnet-client)
-- [RabbitMQ Client Project Site](https://www.rabbitmq.com/dotnet.html)
-
 The following 2 sections, _Producer_ and _Consumer_, highlight the code required to interact with _RabbitMQ_
 
 ### Consumer

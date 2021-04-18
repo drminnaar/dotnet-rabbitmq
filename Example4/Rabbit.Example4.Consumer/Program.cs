@@ -23,7 +23,7 @@ namespace Rabbit.Example4.Consumer
                 .Regions
                 .Select(region =>
                 {
-                    var normalizedRegion = region.Normalize().ToLower().Trim().Replace(" ", string.Empty);
+                    var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
                     var queueName = $"example4_trades_{normalizedRegion}_queue";
                     return new KeyValuePair<string, string>(region, queueName);
                 })
