@@ -275,7 +275,7 @@ Please find the install for your platform (OS) of choice.
 
 ### CloudAMQP
 
-This is the easiest way to get up and rinning with RabbitMQ. No installation or setup is required. All one needs to do is head over to [CloudAMQP] CloudAMQP is a cloud provider of various "products as a service" such as RabbitMQ, Apache Kafka, and ElephantSQL. To get started using 'RabbitMQ as a Service', see the following links:
+This is the easiest way to get up and running with RabbitMQ. No installation or setup is required. All one needs to do is head over to [CloudAMQP] CloudAMQP is a cloud provider of various "products as a service" such as RabbitMQ, Apache Kafka, and ElephantSQL. To get started using 'RabbitMQ as a Service', see the following links:
 
 - [CloudAMQP Plans]
 - [CloudAMQP Free Plan]
