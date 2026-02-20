@@ -1,0 +1,35 @@
+<Solution>
+  <Folder Name="/Common/">
+    <Project Path="Common/Rabbit.Common.csproj" />
+  </Folder>
+  <Folder Name="/Example1/">
+    <File Path="Example1/README.md" />
+    <Project Path="Example1/Rabbit.Example1.Consumer/Rabbit.Example1.Consumer.csproj" />
+    <Project Path="Example1/Rabbit.Example1.Producer/Rabbit.Example1.Producer.csproj" />
+  </Folder>
+  <Folder Name="/Example2/">
+    <File Path="Example2/README.md" />
+    <Project Path="Example2/Rabbit.Example2.Consumer/Rabbit.Example2.Consumer.csproj" />
+    <Project Path="Example2/Rabbit.Example2.Producer/Rabbit.Example2.Producer.csproj" />
+  </Folder>
+  <Folder Name="/Example3/">
+    <File Path="Example3/README.md" />
+    <Project Path="Example3/Rabbit.Example3.Consumer/Rabbit.Example3.Consumer.csproj" />
+    <Project Path="Example3/Rabbit.Example3.Producer/Rabbit.Example3.Producer.csproj" />
+  </Folder>
+  <Folder Name="/Example4/">
+    <File Path="Example4/README.md" />
+    <Project Path="Example4/Rabbit.Example4.Consumer/Rabbit.Example4.Consumer.csproj" />
+    <Project Path="Example4/Rabbit.Example4.Producer/Rabbit.Example4.Producer.csproj" />
+  </Folder>
+  <Folder Name="/Example5/">
+    <File Path="Example5/README.md" />
+    <Project Path="Example5/Rabbit.Example5.Consumer/Rabbit.Example5.Consumer.csproj" />
+    <Project Path="Example5/Rabbit.Example5.Producer/Rabbit.Example5.Producer.csproj" />
+  </Folder>
+  <Folder Name="/Example6/">
+    <Project Path="Example6/Rabbit.Example6.Consumer/Rabbit.Example6.Consumer.csproj" />
+    <Project Path="Example6/Rabbit.Example6.Producer/Rabbit.Example6.Producer.csproj" />
+  </Folder>
+
+</Solution>

@@ -76,7 +76,7 @@ var connectionFactory = new ConnectionFactory
 };
 
 // a connection is of type IConnection and implements IDisposable
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 A _Connection_ represents a TCP connection between the _Client_ and the _Broker_. It's responsible for all the underlying networking and authentication tasks.
@@ -87,7 +87,7 @@ _Channels_ enable efficient communication and are "lightweight connections" that
 
 ```csharp
 // a channel is of type IModel and implements IDisposable
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
@@ -97,7 +97,7 @@ A _Queue_ is a FIFO (First-In-First-Out) ordered collection of messages. When de
 Routing Key = Queue Name = example1_trades_queue
 
 ```csharp
-var queue = channel.QueueDeclare(
+var queue = await channel.QueueDeclareAsync(
     queue: "example1_trades_queue",
     durable: false,
     exclusive: false,
@@ -110,10 +110,10 @@ var queue = channel.QueueDeclare(
 Create a _Consumer_ and subscribe to _Received_ events. In the _callback_ of the event, one is able to extract and process message that was sent to _Queue_.
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
 // subscribe to 'Received' event      
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var messageBody = eventArgs.Body.ToArray();
 
@@ -130,7 +130,7 @@ consumer.Received += (sender, eventArgs) =>
 Start consuming messages from the _Queue_ using the _Consumer_ that was created. For this example we also disable automatic _Acknowledgements (ACKS)_.
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queue.QueueName,
     autoAck: false,
     consumer: consumer);
@@ -142,72 +142,62 @@ Because automatic _Acknowledgements_ were disabled in the previous step, an _ACK
 
 ```csharp
 // subscribe to 'Received' event      
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     ...
     ...
     ...    
-    channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+    await await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 };
 ```
 
 #### Full Listing
 
 ```csharp
-namespace Rabbit.Example1.Consumer
+Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : CONSUMER");
+
+var connectionFactory = new ConnectionFactory
 {
-    internal sealed class Program
-    {
-        private static void Main()
-        {
-            Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : CONSUMER");
+    HostName = "localhost",
+    UserName = "admin",
+    Password = "password"
+};
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+using var channel = await connection.CreateChannelAsync();
 
-            using var channel = connection.CreateModel();
+var queue = await channel.QueueDeclareAsync(
+    queue: "example1_trades_queue",
+    durable: false,
+    exclusive: false,
+    autoDelete: false,
+    arguments: new Dictionary<string, object?>());
 
-            var queue = channel.QueueDeclare(
-                queue: "example1_trades_queue",
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-            var consumer = new EventingBasicConsumer(channel);
-            
-            consumer.Received += (sender, eventArgs) =>
-            {
-                var messageBody = eventArgs.Body.ToArray();
-                var trade = Trade.FromBytes(messageBody);
+consumer.ReceivedAsync += async (sender, eventArgs) =>
+{
+    var messageBody = eventArgs.Body.ToArray();
+    var trade = Trade.FromBytes(messageBody);
 
-                // helper to display broker information to the console
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(eventArgs.Exchange)
-                    .SetQueue(queue)
-                    .SetRoutingKey(eventArgs.RoutingKey)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
-                
-                channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-            };
+    DisplayInfo<Trade>
+        .For(trade)
+        .SetExchange(eventArgs.Exchange)
+        .SetQueue(queue)
+        .SetRoutingKey(eventArgs.RoutingKey)
+        .SetVirtualHost(connectionFactory.VirtualHost)
+        .Display(Color.Yellow);
 
-            channel.BasicConsume(
-                queue: queue.QueueName,
-                autoAck: false,
-                consumer: consumer);
+    await await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+};
 
-            Console.ReadLine();
-        }
-    }
-}
+await channel.BasicConsumeAsync(
+    queue: queue.QueueName,
+    autoAck: false,
+    consumer: consumer);
+
+Console.ReadLine();
 ```
 
 ### Producer
@@ -222,24 +212,24 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
 
 ```csharp
-var queue = channel.QueueDeclare(
+var queue = await channel.QueueDeclareAsync(
     queue: QueueName,
     durable: false,
     exclusive: false,
     autoDelete: false,
-    arguments: ImmutableDictionary<string, object>.Empty);
+    arguments: new Dictionary<string, object?>());
 ```
 
 #### Step 4 - Create and Publish Message
@@ -247,7 +237,7 @@ var queue = channel.QueueDeclare(
 ```csharp
 var trade = TradeData.GetFakeTrade();
 
-channel.BasicPublish(
+await await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: QueueName,
     mandatory: false,
@@ -259,59 +249,48 @@ channel.BasicPublish(
 #### Full Listing
 
 ```csharp
-namespace Rabbit.Example1.Producer
+Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : PRODUCER");
+
+const string ExchangeName = "";
+const string QueueName = "example1_trades_queue";
+
+var connectionFactory = new ConnectionFactory
 {
-    internal class Program
-    {
-        internal static async Task Main()
-        {
-            Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : PRODUCER");
+    HostName = "localhost",
+    UserName = "admin",
+    Password = "password"
+};
 
-            const string ExchangeName = "";
-            const string QueueName = "example1_trades_queue";
+using var connection = await connectionFactory.CreateConnectionAsync();
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+using var channel = await connection.CreateChannelAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+var queue = await channel.QueueDeclareAsync(
+    queue: QueueName,
+    durable: false,
+    exclusive: false,
+    autoDelete: false,
+    arguments: new Dictionary<string, object?>());
 
-            using var channel = connection.CreateModel();
+while (true)
+{
+    var trade = TradeData.GetFakeTrade();
 
-            var queue = channel.QueueDeclare(
-                queue: QueueName,
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+    await channel.BasicPublishAsync(
+        exchange: ExchangeName,
+        routingKey: QueueName,
+        body: trade.ToBytes()
+    );
 
-            while (true)
-            {
-                var trade = TradeData.GetFakeTrade();
+    DisplayInfo<Trade>
+        .For(trade)
+        .SetExchange(ExchangeName)
+        .SetQueue(QueueName)
+        .SetRoutingKey(QueueName)
+        .SetVirtualHost(connectionFactory.VirtualHost)
+        .Display(Color.Cyan);
 
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: QueueName,
-                    mandatory: false,
-                    basicProperties: null,
-                    body: trade.ToBytes()
-                );
-
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(ExchangeName)
-                    .SetQueue(QueueName)
-                    .SetRoutingKey(QueueName)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
-
-                await Task.Delay(millisecondsDelay: 5000);
-            }
-        }
-    }
+    await Task.Delay(millisecondsDelay: 5000);
 }
 ```
 
@@ -319,44 +298,10 @@ namespace Rabbit.Example1.Producer
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

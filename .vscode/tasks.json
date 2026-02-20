@@ -1,16 +1,317 @@
 {
     "version": "2.0.0",
     "tasks": [
+        // ----------------------------------------------------------------------------------------
+        // Example1
+        // ----------------------------------------------------------------------------------------
         {
-            "label": "build",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/Rabbit.sln",
-                "/property:GenerateFullPaths=true"
-            ],
-            "problemMatcher": "$msCompile"
-        }
+            "label": "dotnet: run Example1 Consumer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example1/Rabbit.Example1.Consumer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example1/Rabbit.Example1.Consumer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        {
+            "label": "dotnet: run Example1 Producer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example1/Rabbit.Example1.Producer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example1/Rabbit.Example1.Producer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        // ----------------------------------------------------------------------------------------
+        // Example2
+        // ----------------------------------------------------------------------------------------
+        {
+            "label": "dotnet: run Example2 Consumer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example2/Rabbit.Example2.Consumer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example2/Rabbit.Example2.Consumer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        {
+            "label": "dotnet: run Example2 Producer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example2/Rabbit.Example2.Producer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example2/Rabbit.Example2.Producer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        // ----------------------------------------------------------------------------------------
+        // Example3
+        // ----------------------------------------------------------------------------------------
+        {
+            "label": "dotnet: run Example3 Producer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example3/Rabbit.Example3.Producer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example3/Rabbit.Example3.Producer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        // ----------------------------------------------------------------------------------------
+        // Example4
+        // ----------------------------------------------------------------------------------------
+        {
+            "label": "dotnet: run Example4 Consumer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example4/Rabbit.Example4.Consumer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example4/Rabbit.Example4.Consumer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        {
+            "label": "dotnet: run Example4 Producer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example4/Rabbit.Example4.Producer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example4/Rabbit.Example4.Producer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        // ----------------------------------------------------------------------------------------
+        // Example5
+        // ----------------------------------------------------------------------------------------
+        {
+            "label": "dotnet: run Example5 Consumer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example5/Rabbit.Example5.Consumer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example5/Rabbit.Example5.Consumer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
+        {
+            "label": "dotnet: run Example5 Producer ",
+            "type": "shell",
+            "problemMatcher": "$msCompile",
+            "windows": {
+                "command": "C:/Program Files/Git/bin/bash.exe",
+                "args": [
+                    "-c",
+                    "dotnet watch run --project ./Example5/Rabbit.Example5.Producer"
+                ]
+            },
+            "linux": {
+                "command": "dotnet",
+                "args": [
+                    "run",
+                    "--project",
+                    "${workspaceFolder}/Example5/Rabbit.Example5.Producer"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            },
+            "icon": {
+                "id": "play",
+                "color": "terminal.ansiGreen"
+            }
+        },
     ]
 }

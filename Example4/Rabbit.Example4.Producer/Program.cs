@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using RabbitMQ.Client;
-using System.Collections.Immutable;
 using Rabbit.Common.Display;
 using Rabbit.Common.Data.Trades;
 using System.Linq;
@@ -8,81 +7,80 @@ using System.Collections.Generic;
 using System;
 using System.Drawing;
 
-namespace Rabbit.Example4.Producer
+namespace Rabbit.Example4.Producer;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private static async Task Main()
     {
-        private static async Task Main()
+        Console.WriteLine("EXAMPLE 4 : ROUTING : PRODUCER");
+
+        var connectionFactory = new ConnectionFactory
         {
-            Console.WriteLine("EXAMPLE 4 : ROUTING : PRODUCER");
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
 
-            var connectionFactory = new ConnectionFactory
+        using var connection = await connectionFactory.CreateConnectionAsync();
+
+        using var channel = await connection.CreateChannelAsync();
+
+        const string ExchangeName = "example4_trades_exchange";
+
+        await channel.ExchangeDeclareAsync(
+            exchange: ExchangeName,
+            type: ExchangeType.Direct,
+            durable: false,
+            autoDelete: false,
+            arguments: new Dictionary<string, object?>());
+
+        var QueueNames = TradeData
+            .Regions
+            .Select(region =>
             {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+                var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
+                var queueName = $"example4_trades_{normalizedRegion}_queue";
+                return new KeyValuePair<string, string>(region, queueName);
+            })
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-            using var connection = connectionFactory.CreateConnection();
-
-            using var channel = connection.CreateModel();
-
-            const string ExchangeName = "example4_trades_exchange";
-
-            channel.ExchangeDeclare(
-                exchange: ExchangeName,
-                type: ExchangeType.Direct,
+        foreach (var region in TradeData.Regions)
+        {
+            var queue = await channel.QueueDeclareAsync(
+                queue: QueueNames[region],
                 durable: false,
+                exclusive: false,
                 autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+                arguments: new Dictionary<string, object?>());
 
-            var QueueNames = TradeData
-                .Regions
-                .Select(region =>
-                {
-                    var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
-                    var queueName = $"example4_trades_{normalizedRegion}_queue";
-                    return new KeyValuePair<string, string>(region, queueName);
-                })
-                .ToImmutableDictionary();
+            await channel.QueueBindAsync(
+                queue: queue.QueueName,
+                exchange: ExchangeName,
+                routingKey: region,
+                arguments: new Dictionary<string, object?>());
+        }
 
-            foreach (var region in TradeData.Regions)
-            {
-                var queue = channel.QueueDeclare(
-                    queue: QueueNames[region],
-                    durable: false,
-                    exclusive: false,
-                    autoDelete: false,
-                    arguments: ImmutableDictionary<string, object>.Empty);
+        while (true)
+        {
+            var trade = TradeData.GetFakeTrade();
 
-                channel.QueueBind(
-                    queue: queue.QueueName,
-                    exchange: ExchangeName,
-                    routingKey: region,
-                    arguments: ImmutableDictionary<string, object>.Empty);
-            }
+            string routingKey = trade.Region;
 
-            while (true)
-            {
-                var trade = TradeData.GetFakeTrade();
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: routingKey,
+                body: trade.ToBytes()
+            );
 
-                string routingKey = trade.Region;
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(ExchangeName)
+                .SetRoutingKey(routingKey)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Cyan);
 
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: routingKey,
-                    body: trade.ToBytes()
-                );
-
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(ExchangeName)
-                    .SetRoutingKey(routingKey)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
-
-                await Task.Delay(millisecondsDelay: 3000);
-            }
+            await Task.Delay(millisecondsDelay: 3000);
         }
     }
 }

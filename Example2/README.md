@@ -61,17 +61,17 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 
 // Round Robin dispatching is used by default
 // Uncomment the following code to enable Fair dispatch
-// channel.BasicQos(
+// await channel.BasicQosAsync(
 //     prefetchSize: 0,
 //     prefetchCount: 1,
 //     global: false);
@@ -80,7 +80,7 @@ using var channel = connection.CreateModel();
 #### Step 3 - Declare Queue
 
 ```csharp
-var queue = channel.QueueDeclare(
+var queue = await channel.QueueDeclareAsync(
     queue: "example2_signals_queue",
     durable: false,
     exclusive: false,
@@ -91,9 +91,9 @@ var queue = channel.QueueDeclare(
 #### Step 4 - Create Consumer
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var messageBody = eventArgs.Body.ToArray();
     var signal = Signal.FromBytes(messageBody);
@@ -108,14 +108,14 @@ consumer.Received += (sender, eventArgs) =>
 
     DecodeSignal(signal);
 
-    channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+    await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 };
 ```
 
 #### Step 5 - Consume Messages
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queue.QueueName,
     autoAck: false,
     consumer: consumer);
@@ -124,83 +124,80 @@ channel.BasicConsume(
 #### Step 6 - Send Acknowledgements (ACKS)
 
 ```csharp
-channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 ```
 
 #### Full Listing
 
 ```csharp
-internal class Program
+private static async Task Main()
 {
-    private static void Main()
+    Console.WriteLine("\nEXAMPLE 2 : WORK QUEUE : CONSUMER");
+
+    var connectionFactory = new ConnectionFactory
     {
-        Console.WriteLine($"\nEXAMPLE 2 : WORK QUEUE : CONSUMER");
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
 
-        var connectionFactory = new ConnectionFactory
-        {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
+    using var connection = await connectionFactory.CreateConnectionAsync();
 
-        using var connection = connectionFactory.CreateConnection();
+    using var channel = await connection.CreateChannelAsync();
 
-        using var channel = connection.CreateModel();
+    // Round Robin dispatching is used by default
+    // Uncomment the following code to enable Fair dispatch
+    // await await channel.BasicQosAsyncAsync(
+    //  prefetchSize: 0,
+    //  prefetchCount: 1,
+    //  global: false);
 
-        // Round Robin dispatching is used by default
-        // Uncomment the following code to enable Fair dispatch
-        // channel.BasicQos(
-        //     prefetchSize: 0,
-        //     prefetchCount: 1,
-        //     global: false);
+    var queue = await channel.QueueDeclareAsync(
+        queue: "example2_signals_queue",
+        durable: false,
+        exclusive: false,
+        autoDelete: false,
+        arguments: new Dictionary<string, object?>());
 
-        var queue = channel.QueueDeclare(
-            queue: "example2_signals_queue",
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: ImmutableDictionary<string, object>.Empty);
-
-        var consumer = new EventingBasicConsumer(channel);
-        consumer.Received += (sender, eventArgs) =>
-        {
-            var messageBody = eventArgs.Body.ToArray();
-            var signal = Signal.FromBytes(messageBody);
-
-            DisplayInfo<Signal>
-                .For(signal)
-                .SetExchange(eventArgs.Exchange)
-                .SetQueue(queue)
-                .SetRoutingKey(eventArgs.RoutingKey)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Yellow);
-
-            DecodeSignal(signal);
-
-            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-        };
-
-        channel.BasicConsume(
-            queue: queue.QueueName,
-            autoAck: false,
-            consumer: consumer);
-
-        Console.ReadLine();
-    }
-
-    private static void DecodeSignal(Signal signal)
+    var consumer = new AsyncEventingBasicConsumer(channel);
+    consumer.ReceivedAsync += async (sender, eventArgs) =>
     {
-        Console.WriteLine($"\nDECODE STARTED: [ TX: {signal.TransmitterName}, ENCODED DATA: {signal.Data} ]".Pastel(Color.Lime));
+        var messageBody = eventArgs.Body.ToArray();
+        var signal = Signal.FromBytes(messageBody);
 
-        var stopwatch = new Stopwatch();
-        stopwatch.Start();
+        DisplayInfo<Signal>
+            .For(signal)
+            .SetExchange(eventArgs.Exchange)
+            .SetQueue(queue)
+            .SetRoutingKey(eventArgs.RoutingKey)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Yellow);
 
-        var decodedData = Receiver.DecodeSignal(signal);
+        DecodeSignal(signal);
 
-        stopwatch.Stop();
+        await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+    };
 
-        Console.WriteLine($@"DECODE COMPLETE: [ TIME: {stopwatch.Elapsed.Seconds} sec, TX: {signal.TransmitterName}, DECODED DATA: {decodedData} ]".Pastel(Color.Lime));
-    }
+    await channel.BasicConsumeAsync(
+        queue: queue.QueueName,
+        autoAck: false,
+        consumer: consumer);
+
+    Console.ReadLine();
+}
+
+private static void DecodeSignal(Signal signal)
+{
+    Console.WriteLine($"\nDECODE STARTED: [ TX: {signal.TransmitterName}, ENCODED DATA: {signal.Data} ]".Pastel(Color.Lime));
+
+    var stopwatch = new Stopwatch();
+    stopwatch.Start();
+
+    var decodedData = Receiver.DecodeSignal(signal);
+
+    stopwatch.Stop();
+
+    Console.WriteLine($@"DECODE COMPLETE: [ TIME: {stopwatch.Elapsed.Seconds} sec, TX: {signal.TransmitterName}, DECODED DATA: {decodedData} ]".Pastel(Color.Lime));
 }
 ```
 
@@ -216,19 +213,19 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
 
 ```csharp
-var queue = channel.QueueDeclare(
+var queue = await channel.QueueDeclareAsync(
     queue: QueueName,
     durable: false,
     exclusive: false,
@@ -241,7 +238,7 @@ var queue = channel.QueueDeclare(
 ```csharp
 var signal = Transmitter.Fake().Transmit();
 
-channel.BasicPublish(
+await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: QueueName,
     body: Encoding.UTF8.GetBytes(signal.ToJson())
@@ -251,102 +248,62 @@ channel.BasicPublish(
 #### Full Listing
 
 ```csharp
-namespace Rabbit.Example2.Producer
+private static async Task Main()
 {
-    internal class Program
+    Console.WriteLine("\nEXAMPLE 2 : WORK QUEUE : PRODUCER");
+
+    var connectionFactory = new ConnectionFactory
     {
-        internal static async Task Main()
-        {
-            Console.WriteLine("\nEXAMPLE 1 : WORK QUEUES : PRODUCER");
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
 
-            const string ExchangeName = "";
-            const string QueueName = "example2_signals_queue";
+    using var connection = await connectionFactory.CreateConnectionAsync();
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+    using var channel = await connection.CreateChannelAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+    const string ExchangeName = "";
 
-            using var channel = connection.CreateModel();
+    const string QueueName = "example2_signals_queue";
 
-            var queue = channel.QueueDeclare(
-                queue: QueueName,
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+    var queue = await channel.QueueDeclareAsync(
+        queue: QueueName,
+        durable: false,
+        exclusive: false,
+        autoDelete: false,
+        arguments: new Dictionary<string, object?>());
 
-            while (true)
-            {
-                var signal = Transmitter.Fake().Transmit();
+    while (true)
+    {
+        var signal = Transmitter.Fake().Transmit();
 
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: QueueName,
-                    body: Encoding.UTF8.GetBytes(signal.ToJson())
-                );
+        await channel.BasicPublishAsync(
+            exchange: ExchangeName,
+            routingKey: QueueName,
+            body: Encoding.UTF8.GetBytes(signal.ToJson())
+        );
 
-                DisplayInfo<Signal>
-                    .For(signal)
-                    .SetExchange(ExchangeName)
-                    .SetQueue(QueueName)
-                    .SetRoutingKey(QueueName)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
+        DisplayInfo<Signal>
+            .For(signal)
+            .SetExchange(ExchangeName)
+            .SetQueue(QueueName)
+            .SetRoutingKey(QueueName)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Cyan);
 
-                await Task.Delay(millisecondsDelay: 5000);
-            }
-        }
+        await Task.Delay(millisecondsDelay: 3000);
     }
-}
 ```
 
 ---
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

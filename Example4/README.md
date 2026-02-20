@@ -39,13 +39,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
@@ -70,7 +70,7 @@ channel.ExchangeDeclare(
 #### Step 5 - Create Binding
 
 ```csharp
-var queue = channel.QueueDeclare(
+var queue = await channel.QueueDeclareAsync(
     queue: QueueNames[region],
     durable: false,
     exclusive: false,
@@ -86,9 +86,9 @@ channel.QueueBind(
 #### Step 6 - Create Consumer
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var messageBody = eventArgs.Body.ToArray();
     var trade = Trade.FromBytes(messageBody);
@@ -101,14 +101,14 @@ consumer.Received += (sender, eventArgs) =>
         .SetVirtualHost(connectionFactory.VirtualHost)
         .Display(Color.Yellow);
 
-    channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+    await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 };
 ```
 
 #### Step 7 - Consume Messages
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queue.QueueName,
     autoAck: false,
     consumer: consumer);
@@ -117,96 +117,95 @@ channel.BasicConsume(
 #### Step 8 - Send Acknowledgements (ACKS)
 
 ```csharp
-channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 ```
 
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static async Task Main(string[] regions)
 {
-    private static void Main(string[] regions)
+    Console.WriteLine("\nEXAMPLE 4 : ROUTING : CONSUMER");
+
+    var region = regions.FirstOrDefault() ?? string.Empty;
+
+    var QueueNames = TradeData
+        .Regions
+        .Select(region =>
+        {
+            var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
+            var queueName = $"example4_trades_{normalizedRegion}_queue";
+            return new KeyValuePair<string, string>(region, queueName);
+        })
+        .ToImmutableDictionary();
+
+    if (!QueueNames.ContainsKey(region))
     {
-        Console.WriteLine("\nEXAMPLE 4 : ROUTING : CONSUMER");
-
-        var region = regions.FirstOrDefault() ?? string.Empty;
-
-        var QueueNames = TradeData
-            .Regions
-            .Select(region =>
-            {
-                var normalizedRegion = region.Normalize().ToLower().Trim().Replace(" ", string.Empty);
-                var queueName = $"example4_trades_{normalizedRegion}_queue";
-                return new KeyValuePair<string, string>(region, queueName);
-            })
-            .ToImmutableDictionary();
-
-        if (!QueueNames.ContainsKey(region))
-        {
-            Console.WriteLine($"\nInvalid region '{region}'.".Pastel(Color.Tomato));
-            Console.WriteLine($"Enter valid region name to start ({string.Join(", ", QueueNames.Keys)})".Pastel(Color.Tomato));
-            Console.WriteLine();
-            Environment.ExitCode = 1;
-            return;
-        }
-
-        var connectionFactory = new ConnectionFactory
-        {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
-
-        using var connection = connectionFactory.CreateConnection();
-
-        using var channel = connection.CreateModel();
-
-        const string ExchangeName = "example4_trades_exchange";
-
-        channel.ExchangeDeclare(
-            exchange: ExchangeName,
-            type: ExchangeType.Direct,
-            durable: false,
-            autoDelete: false,
-            arguments: ImmutableDictionary<string, object>.Empty);
-
-        var queue = channel.QueueDeclare(
-            queue: QueueNames[region],
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: ImmutableDictionary<string, object>.Empty);
-
-        channel.QueueBind(
-            queue: queue.QueueName,
-            exchange: ExchangeName,
-            routingKey: region);
-
-        var consumer = new EventingBasicConsumer(channel);
-        consumer.Received += (sender, eventArgs) =>
-        {
-            var messageBody = eventArgs.Body.ToArray();
-            var trade = Trade.FromBytes(messageBody);
-
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(eventArgs.Exchange)
-                .SetQueue(queue.QueueName)
-                .SetRoutingKey(eventArgs.RoutingKey)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Yellow);
-
-            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-        };
-
-        channel.BasicConsume(
-            queue: queue.QueueName,
-            autoAck: false,
-            consumer: consumer);
-
-        Console.ReadLine();
+        Console.WriteLine($"\nInvalid region '{region}'.".Pastel(Color.Tomato));
+        Console.WriteLine($"Enter valid region name to start ({string.Join(", ", QueueNames.Keys)})".Pastel(Color.Tomato));
+        Console.WriteLine();
+        Environment.ExitCode = 1;
+        return;
     }
+
+    var connectionFactory = new ConnectionFactory
+    {
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
+
+    using var connection = await connectionFactory.CreateConnectionAsync();
+
+    using var channel = await connection.CreateChannelAsync();
+
+    const string ExchangeName = "example4_trades_exchange";
+
+    await channel.ExchangeDeclareAsync(
+        exchange: ExchangeName,
+        type: ExchangeType.Direct,
+        durable: false,
+        autoDelete: false,
+        arguments: new Dictionary<string, object?>());
+
+    var queue = await channel.QueueDeclareAsync(
+        queue: QueueNames[region],
+        durable: false,
+        exclusive: false,
+        autoDelete: false,
+        arguments: new Dictionary<string, object?>());
+
+    await channel.QueueBindAsync(
+        queue: queue.QueueName,
+        exchange: ExchangeName,
+        routingKey: region);
+
+    var consumer = new AsyncEventingBasicConsumer(channel);
+    consumer.ReceivedAsync += async (sender, eventArgs) =>
+    {
+        var messageBody = eventArgs.Body.ToArray();
+        var trade = Trade.FromBytes(messageBody);
+
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(eventArgs.Exchange)
+            .SetQueue(queue.QueueName)
+            .SetRoutingKey(eventArgs.RoutingKey)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Yellow);
+
+        await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+    };
+
+    await channel.BasicConsumeAsync(
+        queue: queue.QueueName,
+        autoAck: false,
+        consumer: consumer);
+
+    Console.ReadLine();
 }
+        
+         
 ```
 
 ### Producer
@@ -221,13 +220,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Exchange
@@ -258,7 +257,7 @@ var QueueNames = TradeData
 
 foreach (var region in TradeData.Regions)
 {
-    var queue = channel.QueueDeclare(
+    var queue = await channel.QueueDeclareAsync(
         queue: QueueNames[region],
         durable: false,
         exclusive: false,
@@ -280,7 +279,7 @@ var trade = TradeData.GetFakeTrade();
 
 string routingKey = trade.Region;
 
-channel.BasicPublish(
+await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: routingKey,
     body: trade.ToBytes()
@@ -290,79 +289,76 @@ channel.BasicPublish(
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static async Task Main()
 {
-    private static async Task Main()
+    Console.WriteLine("EXAMPLE 4 : ROUTING : PRODUCER");
+
+    var connectionFactory = new ConnectionFactory
     {
-        Console.WriteLine("EXAMPLE 4 : ROUTING : PRODUCER");
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
 
-        var connectionFactory = new ConnectionFactory
+    using var connection = await connectionFactory.CreateConnectionAsync();
+
+    using var channel = await connection.CreateChannelAsync();
+
+    const string ExchangeName = "example4_trades_exchange";
+
+    await channel.ExchangeDeclareAsync(
+        exchange: ExchangeName,
+        type: ExchangeType.Direct,
+        durable: false,
+        autoDelete: false,
+        arguments: new Dictionary<string, object?>());
+
+    var QueueNames = TradeData
+        .Regions
+        .Select(region =>
         {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
+            var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
+            var queueName = $"example4_trades_{normalizedRegion}_queue";
+            return new KeyValuePair<string, string>(region, queueName);
+        })
+        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-        using var connection = connectionFactory.CreateConnection();
-
-        using var channel = connection.CreateModel();
-
-        const string ExchangeName = "example4_trades_exchange";
-
-        channel.ExchangeDeclare(
-            exchange: ExchangeName,
-            type: ExchangeType.Direct,
+    foreach (var region in TradeData.Regions)
+    {
+        var queue = await channel.QueueDeclareAsync(
+            queue: QueueNames[region],
             durable: false,
+            exclusive: false,
             autoDelete: false,
-            arguments: ImmutableDictionary<string, object>.Empty);
+            arguments: new Dictionary<string, object?>());
 
-        var QueueNames = TradeData
-            .Regions
-            .Select(region =>
-            {
-                var normalizedRegion = region.ToLower().Trim().Replace(" ", string.Empty);
-                var queueName = $"example4_trades_{normalizedRegion}_queue";
-                return new KeyValuePair<string, string>(region, queueName);
-            })
-            .ToImmutableDictionary();
+        await channel.QueueBindAsync(
+            queue: queue.QueueName,
+            exchange: ExchangeName,
+            routingKey: region,
+            arguments: new Dictionary<string, object?>());
+    }
 
-        foreach (var region in TradeData.Regions)
-        {
-            var queue = channel.QueueDeclare(
-                queue: QueueNames[region],
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+    while (true)
+    {
+        var trade = TradeData.GetFakeTrade();
 
-            channel.QueueBind(
-                queue: queue.QueueName,
-                exchange: ExchangeName,
-                routingKey: region,
-                arguments: ImmutableDictionary<string, object>.Empty);
-        }
+        string routingKey = trade.Region;
 
-        while (true)
-        {
-            var trade = TradeData.GetFakeTrade();
+        await channel.BasicPublishAsync(
+            exchange: ExchangeName,
+            routingKey: routingKey,
+            body: trade.ToBytes()
+        );
 
-            string routingKey = trade.Region;
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(ExchangeName)
+            .SetRoutingKey(routingKey)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Cyan);
 
-            channel.BasicPublish(
-                exchange: ExchangeName,
-                routingKey: routingKey,
-                body: trade.ToBytes()
-            );
-
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(ExchangeName)
-                .SetRoutingKey(routingKey)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Yellow);
-
-            await Task.Delay(millisecondsDelay: 3000);
-        }
+        await Task.Delay(millisecondsDelay: 3000);
     }
 }
 ```
@@ -371,44 +367,10 @@ internal sealed class Program
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

@@ -1,61 +1,61 @@
 ﻿using System;
-using System.Collections.Immutable;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Threading.Tasks;
 using Rabbit.Common.Data.Trades;
 using Rabbit.Common.Display;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace Rabbit.Example1.Consumer
+namespace Rabbit.Example1.Consumer;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private static async Task Main()
     {
-        private static void Main()
+        Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : CONSUMER");
+
+        var connectionFactory = new ConnectionFactory
         {
-            Console.WriteLine("\nEXAMPLE 1 : ONE-WAY MESSAGING : CONSUMER");
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+        using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+        using var channel = await connection.CreateChannelAsync();
 
-            using var channel = connection.CreateModel();
+        var queue = await channel.QueueDeclareAsync(
+            queue: "example1_trades_queue",
+            durable: false,
+            exclusive: false,
+            autoDelete: false,
+            arguments: new Dictionary<string, object?>());
 
-            var queue = channel.QueueDeclare(
-                queue: "example1_trades_queue",
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: ImmutableDictionary<string, object>.Empty);
+        var consumer = new AsyncEventingBasicConsumer(channel);
 
-            var consumer = new EventingBasicConsumer(channel);
+        consumer.ReceivedAsync += async (sender, eventArgs) =>
+        {
+            var messageBody = eventArgs.Body.ToArray();
+            var trade = Trade.FromBytes(messageBody);
 
-            consumer.Received += (sender, eventArgs) =>
-            {
-                var messageBody = eventArgs.Body.ToArray();
-                var trade = Trade.FromBytes(messageBody);
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(eventArgs.Exchange)
+                .SetQueue(queue)
+                .SetRoutingKey(eventArgs.RoutingKey)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Yellow);
 
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(eventArgs.Exchange)
-                    .SetQueue(queue)
-                    .SetRoutingKey(eventArgs.RoutingKey)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+        };
 
-                channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-            };
+        await channel.BasicConsumeAsync(
+            queue: queue.QueueName,
+            autoAck: false,
+            consumer: consumer);
 
-            channel.BasicConsume(
-                queue: queue.QueueName,
-                autoAck: false,
-                consumer: consumer);
-
-            Console.ReadLine();
-        }
+        Console.ReadLine();
     }
 }

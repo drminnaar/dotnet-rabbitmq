@@ -39,13 +39,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
@@ -59,7 +59,7 @@ var queueName = channel.QueueDeclare().QueueName;
 ```csharp
 const string ExchangeName = "example3_forecasts_exchange";
 
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Fanout);
 ```
 
 #### Step 5 - Create Binding
@@ -74,9 +74,9 @@ channel.QueueBind(
 #### Step 6 - Create Consumer
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var body = eventArgs.Body.ToArray();
     var forecast = Forecast.FromBytes(body);
@@ -89,14 +89,14 @@ consumer.Received += (sender, eventArgs) =>
         .SetVirtualHost(connectionFactory.VirtualHost)
         .Display(Color.Yellow);
 
-    channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+    await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 };
 ```
 
 #### Step 7 - Consume Messages
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queueName,
     autoAck: false,
     consumer: consumer);
@@ -105,7 +105,7 @@ channel.BasicConsume(
 #### Step 8 - Send Acknowledgements (ACKS)
 
 ```csharp
-channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 ```
 
 #### Full Listing
@@ -134,16 +134,16 @@ namespace Rabbit.Example3.Consumer
 
             const string ExchangeName = "example3_forecasts_exchange";
 
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+            await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Fanout);
 
             channel.QueueBind(
                 queue: queueName,
                 exchange: ExchangeName,
                 routingKey: string.Empty);
 
-            var consumer = new EventingBasicConsumer(channel);
+            var consumer = new AsyncEventingBasicConsumer(channel);
 
-            consumer.Received += (sender, eventArgs) =>
+            consumer.ReceivedAsync += async (sender, eventArgs) =>
             {
                 var body = eventArgs.Body.ToArray();
                 var forecast = Forecast.FromBytes(body);
@@ -156,10 +156,10 @@ namespace Rabbit.Example3.Consumer
                     .SetVirtualHost(connectionFactory.VirtualHost)
                     .Display(Color.Yellow);
 
-                channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+                await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
             };
 
-            channel.BasicConsume(
+            await channel.BasicConsumeAsync(
                 queue: queueName,
                 autoAck: false,
                 consumer: consumer);
@@ -182,19 +182,19 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Exchange
 
 ```csharp
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Fanout);
 ```
 
 #### Step 4 - Create and Publish Message
@@ -202,7 +202,7 @@ channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
 ```csharp
 var forecast = Thermometer.Fake().Report();
 
-channel.BasicPublish(
+await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: QueueName,
     body: Encoding.UTF8.GetBytes(forecast.ToJson())
@@ -227,20 +227,20 @@ namespace Rabbit.Example3.Producer
                 Password = "password"
             };
 
-            using var connection = connectionFactory.CreateConnection();
+            using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var channel = connection.CreateModel();
+            using var channel = await connection.CreateChannelAsync();
 
             const string QueueName = "";
             const string ExchangeName = "example3_forecasts_exchange";
 
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+            await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Fanout);
 
             while (true)
             {
                 var forecast = Thermometer.Fake().Report();
 
-                channel.BasicPublish(
+                await channel.BasicPublishAsync(
                     exchange: ExchangeName,
                     routingKey: QueueName,
                     body: Encoding.UTF8.GetBytes(forecast.ToJson())
@@ -265,44 +265,10 @@ namespace Rabbit.Example3.Producer
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

@@ -53,13 +53,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
@@ -73,7 +73,7 @@ var queueName = channel.QueueDeclare().QueueName;
 ```csharp
 const string ExchangeName = "example5_trades_exchange";
 
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Topic);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Topic);
 ```
 
 #### Step 5 - Create Binding
@@ -88,9 +88,9 @@ channel.QueueBind(
 #### Step 6 - Create Consumer
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var messageBody = eventArgs.Body.ToArray();
     var trade = Trade.FromBytes(messageBody);
@@ -109,7 +109,7 @@ consumer.Received += (sender, eventArgs) =>
 #### Step 7 - Consume Messages
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queueName,
     autoAck: false,
     consumer: consumer);
@@ -118,81 +118,78 @@ channel.BasicConsume(
 #### Step 8 - Send Acknowledgements (ACKS)
 
 ```csharp
-channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 ```
 
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static async Task Main(string[] topics)
 {
-    private static void Main(string[] topics)
+    Console.WriteLine("\nEXAMPLE 5 : TOPICS : CONSUMER");
+
+    if (topics == null || topics.Length < 1)
     {
-        Console.WriteLine("\nEXAMPLE 5 : TOPICS : CONSUMER");
-
-        if (topics == null || topics.Length < 1)
-        {
-            Console.WriteLine("\nMessage type not specified. Try the following:".Pastel(Color.Tomato));
-            Console.WriteLine("  - dotnet run # (match all)".Pastel(Color.Tomato));
-            Console.WriteLine("  - dotnet run australia.*.* (match australia.software, australia.banking etc)".Pastel(Color.Tomato));
-            Console.WriteLine("  - dotnet run *.software.* (match usa.software, greatbritain.software etc)".Pastel(Color.Tomato));
-            Console.WriteLine();
-            Environment.ExitCode = 1;
-            return;
-        }
-
-        var connectionFactory = new ConnectionFactory
-        {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
-
-        using var connection = connectionFactory.CreateConnection();
-
-        using var channel = connection.CreateModel();
-
-        const string ExchangeName = "example5_trades_exchange";
-
-        channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Topic);
-
-        var queue = channel.QueueDeclare();
-
-        foreach (var topic in topics)
-        {
-            Console.WriteLine(topic);
-            channel.QueueBind(
-                queue: queue.QueueName,
-                exchange: ExchangeName,
-                routingKey: topic);
-        }
-
-        var consumer = new EventingBasicConsumer(channel);
-        
-        consumer.Received += (sender, eventArgs) =>
-        {
-            var messageBody = eventArgs.Body.ToArray();
-            var trade = Trade.FromBytes(messageBody);
-
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(eventArgs.Exchange)
-                .SetQueue(queue.QueueName)
-                .SetRoutingKey(eventArgs.RoutingKey)
-                .SetTopic(eventArgs.RoutingKey)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Yellow);
-
-            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-        };
-
-        channel.BasicConsume(
-            queue: queue.QueueName,
-            autoAck: false,
-            consumer: consumer);
-
-        Console.ReadLine();
+        Console.WriteLine("\nMessage type not specified. Try the following:".Pastel(Color.Tomato));
+        Console.WriteLine("  - dotnet run # (match all)".Pastel(Color.Tomato));
+        Console.WriteLine("  - dotnet run australia.*.buy (match australia.software.buy, australia.banking.buy etc)".Pastel(Color.Tomato));
+        Console.WriteLine("  - dotnet run *.software.sell (match usa.software.sell, greatbritain.software.sell etc)".Pastel(Color.Tomato));
+        Console.WriteLine();
+        Environment.ExitCode = 1;
+        return;
     }
+
+    var connectionFactory = new ConnectionFactory
+    {
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
+
+    using var connection = await connectionFactory.CreateConnectionAsync();
+
+    using var channel = await connection.CreateChannelAsync();
+
+    const string ExchangeName = "example5_trades_exchange";
+
+    await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Topic);
+
+    var queue = await channel.QueueDeclareAsync();
+
+    foreach (var topic in topics)
+    {
+        Console.WriteLine(topic);
+        await channel.QueueBindAsync(
+            queue: queue.QueueName,
+            exchange: ExchangeName,
+            routingKey: topic);
+    }
+
+    var consumer = new AsyncEventingBasicConsumer(channel);
+
+    consumer.ReceivedAsync += async (sender, eventArgs) =>
+    {
+        var messageBody = eventArgs.Body.ToArray();
+        var trade = Trade.FromBytes(messageBody);
+
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(eventArgs.Exchange)
+            .SetQueue(queue.QueueName)
+            .SetRoutingKey(eventArgs.RoutingKey)
+            .SetTopic(eventArgs.RoutingKey)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Yellow);
+
+        await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+    };
+
+    await channel.BasicConsumeAsync(
+        queue: queue.QueueName,
+        autoAck: false,
+        consumer: consumer);
+
+    Console.ReadLine();
 }
 ```
 
@@ -208,19 +205,19 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Exchange
 
 ```csharp
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Topic);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Topic);
 ```
 
 #### Step 4 - Create and Publish Message
@@ -230,7 +227,7 @@ var trade = TradeData.GetFakeTrade();
 
 var topic = $"{trade.NormalizedRegion}.{trade.NormalizedIndustry}.{trade.NormalizedAction}";
 
-channel.BasicPublish(
+await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: topic,
     body: trade.ToBytes());
@@ -239,48 +236,45 @@ channel.BasicPublish(
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static async Task Main()
 {
-    private static async Task Main()
+    Console.WriteLine("\nEXAMPLE 5 : TOPICS : PRODUCER");
+
+    var connectionFactory = new ConnectionFactory
     {
-        Console.WriteLine("\nEXAMPLE 5 : TOPICS : PRODUCER");
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
 
-        var connectionFactory = new ConnectionFactory
-        {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
+    using var connection = await connectionFactory.CreateConnectionAsync();
 
-        using var connection = connectionFactory.CreateConnection();
+    using var channel = await connection.CreateChannelAsync();
 
-        using var channel = connection.CreateModel();
+    const string ExchangeName = "example5_trades_exchange";
 
-        const string ExchangeName = "example5_trades_exchange";
+    await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Topic);
 
-        channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Topic);
+    while (true)
+    {
+        var trade = TradeData.GetFakeTrade();
 
-        while (true)
-        {
-            var trade = TradeData.GetFakeTrade();
+        var topic = $"{trade.NormalizedRegion}.{trade.NormalizedIndustry}.{trade.NormalizedAction}";
 
-            var topic = $"{trade.NormalizedRegion}.{trade.NormalizedIndustry}.{trade.NormalizedAction}";
+        await channel.BasicPublishAsync(
+            exchange: ExchangeName,
+            routingKey: topic,
+            body: trade.ToBytes());
 
-            channel.BasicPublish(
-                exchange: ExchangeName,
-                routingKey: topic,
-                body: trade.ToBytes());
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(ExchangeName)
+            .SetRoutingKey(topic)
+            .SetTopic(topic)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Cyan);
 
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(ExchangeName)
-                .SetRoutingKey(topic)
-                .SetTopic(topic)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Cyan);
-
-            await Task.Delay(millisecondsDelay: 5000);
-        }
+        await Task.Delay(millisecondsDelay: 5000);
     }
 }
 ```
@@ -289,44 +283,10 @@ internal sealed class Program
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

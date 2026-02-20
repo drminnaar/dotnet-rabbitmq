@@ -2,21 +2,20 @@ using System;
 using System.Text;
 using System.Threading;
 
-namespace Rabbit.Common.Data.Signals
+namespace Rabbit.Common.Data.Signals;
+
+public static class Receiver
 {
-    public static class Receiver
+    private static readonly Random _random = new(34677);
+
+    public static string DecodeSignal(Signal signal)
     {
-        private static readonly Random _random = new Random();
+        var encodedData = Convert.FromBase64String(signal.Data);
+        var decodedData = Encoding.UTF8.GetString(encodedData);
 
-        public static string DecodeSignal(Signal signal)
-        {
-            var encodedData = Convert.FromBase64String(signal.Data);
-            var decodedData = Encoding.UTF8.GetString(encodedData);
+        // simulate processing time
+        Thread.Sleep(_random.Next(1, 10) * 1000);
 
-            // simulate processing time
-            Thread.Sleep(_random.Next(1, 10) * 1000);
-
-            return decodedData;
-        }
+        return decodedData;
     }
 }

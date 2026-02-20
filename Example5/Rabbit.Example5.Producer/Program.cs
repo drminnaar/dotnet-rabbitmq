@@ -5,50 +5,49 @@ using Rabbit.Common.Data.Trades;
 using System;
 using System.Drawing;
 
-namespace Rabbit.Example5.Producer
+namespace Rabbit.Example5.Producer;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private static async Task Main()
     {
-        private static async Task Main()
+        Console.WriteLine("\nEXAMPLE 5 : TOPICS : PRODUCER");
+
+        var connectionFactory = new ConnectionFactory
         {
-            Console.WriteLine("\nEXAMPLE 5 : TOPICS : PRODUCER");
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+        using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+        using var channel = await connection.CreateChannelAsync();
 
-            using var channel = connection.CreateModel();
+        const string ExchangeName = "example5_trades_exchange";
 
-            const string ExchangeName = "example5_trades_exchange";
+        await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Topic);
 
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Topic);
+        while (true)
+        {
+            var trade = TradeData.GetFakeTrade();
 
-            while (true)
-            {
-                var trade = TradeData.GetFakeTrade();
+            var topic = $"{trade.NormalizedRegion}.{trade.NormalizedIndustry}.{trade.NormalizedAction}";
 
-                var topic = $"{trade.NormalizedRegion}.{trade.NormalizedIndustry}.{trade.NormalizedAction}";
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: topic,
+                body: trade.ToBytes());
 
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: topic,
-                    body: trade.ToBytes());
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(ExchangeName)
+                .SetRoutingKey(topic)
+                .SetTopic(topic)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Cyan);
 
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(ExchangeName)
-                    .SetRoutingKey(topic)
-                    .SetTopic(topic)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
-
-                await Task.Delay(millisecondsDelay: 5000);
-            }
+            await Task.Delay(millisecondsDelay: 5000);
         }
     }
 }

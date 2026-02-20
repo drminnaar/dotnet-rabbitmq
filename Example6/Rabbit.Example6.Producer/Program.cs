@@ -7,53 +7,58 @@ using System.Linq;
 using System;
 using System.Drawing;
 
-namespace Rabbit.Example6.Producer
-{
-    internal sealed class Program
-    {
-        private static async Task Main()
-        {
-            Console.WriteLine("EXAMPLE 6 : HEADERS : PRODUCER");
+namespace Rabbit.Example6.Producer;
 
-            var connectionFactory = new ConnectionFactory
+internal sealed class Program
+{
+    private static async Task Main()
+    {
+        Console.WriteLine("EXAMPLE 6 : HEADERS : PRODUCER");
+
+        var connectionFactory = new ConnectionFactory
+        {
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
+
+        using var connection = await connectionFactory.CreateConnectionAsync();
+
+        using var channel = await connection.CreateChannelAsync();
+
+        const string ExchangeName = "example6_trades_exchange";
+
+        await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
+
+        while (true)
+        {
+            var trade = TradeData.GetFakeTrade();
+
+            var properties = new BasicProperties
             {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
+                Persistent = true,
+                Headers = new Dictionary<string, object?>
+                {
+                    { "region", trade.NormalizedRegion },
+                    { "industry", trade.NormalizedIndustry }
+                }
             };
 
-            using var connection = connectionFactory.CreateConnection();
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: string.Empty,
+                mandatory: false,
+                basicProperties: properties,
+                body: trade.ToBytes());
 
-            using var channel = connection.CreateModel();
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(ExchangeName)
+                .SetHeaders(properties.Headers.ToDictionary(header => header.Key, header => header.Value!))
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Cyan);
 
-            const string ExchangeName = "example6_trades_exchange";
-
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
-
-            while (true)
-            {
-                var trade = TradeData.GetFakeTrade();
-
-                var properties = channel.CreateBasicProperties();
-                properties.Headers = new Dictionary<string, object>();
-                properties.Headers.Add("region", trade.NormalizedRegion);
-                properties.Headers.Add("industry", trade.NormalizedIndustry);
-
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: string.Empty,
-                    basicProperties: properties,
-                    body: trade.ToBytes());
-
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(ExchangeName)
-                    .SetHeaders(properties.Headers.ToDictionary(header => header.Key, header => header.Value))
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
-
-                await Task.Delay(millisecondsDelay: 5000);
-            }
+            await Task.Delay(millisecondsDelay: 5000);
         }
     }
 }

@@ -7,94 +7,98 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace Rabbit.Example6.Consumer
+namespace Rabbit.Example6.Consumer;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private static readonly IReadOnlyList<string> MatchExpressions = ["all", "any"];
+
+    private static async Task Main()
     {
-        private static readonly IReadOnlyList<string> MatchExpressions = new string[2] { "all", "any" };
+        Console.WriteLine("\nEXAMPLE 6 : HEADERS : CONSUMER");
 
-        private static void Main()
+        var headers = GetHeadersFromInput();
+
+        var connectionFactory = new ConnectionFactory
         {
-            Console.WriteLine("\nEXAMPLE 6 : HEADERS : CONSUMER");
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
 
-            var headers = GetHeadersFromInput();
+        using var connection = await connectionFactory.CreateConnectionAsync();
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+        using var channel = await connection.CreateChannelAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+        var queue = await channel.QueueDeclareAsync();
 
-            using var channel = connection.CreateModel();
+        const string ExchangeName = "example6_trades_exchange";
 
-            var queue = channel.QueueDeclare();
+        await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
 
-            const string ExchangeName = "example6_trades_exchange";
+        await channel.QueueBindAsync(
+            queue: queue.QueueName,
+            exchange: ExchangeName,
+            routingKey: string.Empty,
+            arguments: headers);
 
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
+        var consumer = new AsyncEventingBasicConsumer(channel);
 
-            channel.QueueBind(queue: queue.QueueName, exchange: ExchangeName, routingKey: string.Empty, arguments: headers);
-
-            var consumer = new EventingBasicConsumer(channel);
-
-            consumer.Received += (sender, eventArgs) =>
-            {
-                var messageBody = eventArgs.Body.ToArray();
-
-                var trade = Trade.FromBytes(messageBody);
-
-                DisplayInfo<Trade>
-                    .For(trade)
-                    .SetExchange(ExchangeName)
-                    .SetHeaders(eventArgs.BasicProperties.Headers.ToDictionary(
-                        header => header.Key,
-                        header => (object)Encoding.UTF8.GetString((byte[])header.Value)))
-                    .SetQueue(queue.QueueName)
-                    .SetRoutingKey(eventArgs.RoutingKey)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Yellow);
-
-                channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-            };
-
-            channel.BasicConsume(
-                queue: queue.QueueName,
-                autoAck: false,
-                consumer: consumer);
-
-            Console.ReadLine();
-        }
-
-        private static Dictionary<string, object> GetHeadersFromInput()
+        consumer.ReceivedAsync += async (sender, eventArgs) =>
         {
-            var headers = new Dictionary<string, object>();
+            var messageBody = eventArgs.Body.ToArray();
 
-            while (true)
-            {
-                Console.Write("\nCreate subscription for 'all' or 'any' headers: ");
-                var matchExpression = Console.ReadLine()?.ToLower() ?? string.Empty;
-                if (!MatchExpressions.Contains(matchExpression))
-                    continue;
+            var trade = Trade.FromBytes(messageBody);
 
-                headers.Add("x-match", matchExpression);
+            DisplayInfo<Trade>
+                .For(trade)
+                .SetExchange(ExchangeName)
+                .SetHeaders(eventArgs.BasicProperties?.Headers?.ToDictionary(
+                    header => header.Key,
+                    header => (object)Encoding.UTF8.GetString((byte[])header.Value!)))
+                .SetQueue(queue.QueueName)
+                .SetRoutingKey(eventArgs.RoutingKey)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Yellow);
 
-                Console.Write("\nEnter region (Australia, Great Britain, USA): ");
-                var region = Console.ReadLine()?.ToLower() ?? "";
-                if (TradeData.ContainsRegion(region))
-                    headers.Add("region", region);
+            await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+        };
 
-                Console.Write("Enter industry (Banking, Financial Services, Software): ");
-                var industry = Console.ReadLine()?.ToLower() ?? "";
-                if (TradeData.ContainsIndustry(industry))
-                    headers.Add("industry", industry);
+        await channel.BasicConsumeAsync(
+            queue: queue.QueueName,
+            autoAck: false,
+            consumer: consumer);
 
-                if (headers.Count > 1)
-                    return headers;
-            }
+        Console.ReadLine();
+    }
+
+    private static Dictionary<string, object?> GetHeadersFromInput()
+    {
+        var headers = new Dictionary<string, object?>();
+
+        while (true)
+        {
+            Console.Write("\nCreate subscription for 'all' or 'any' headers: ");
+            var matchExpression = Console.ReadLine()?.ToLower() ?? string.Empty;
+            if (!MatchExpressions.Contains(matchExpression))
+                continue;
+
+            headers.Add("x-match", matchExpression);
+
+            Console.Write("\nEnter region (Australia, Great Britain, USA): ");
+            var region = Console.ReadLine()?.ToLower() ?? "";
+            if (TradeData.ContainsRegion(region))
+                headers.Add("region", region);
+
+            Console.Write("Enter industry (Banking, Financial Services, Software): ");
+            var industry = Console.ReadLine()?.ToLower() ?? "";
+            if (TradeData.ContainsIndustry(industry))
+                headers.Add("industry", industry);
+
+            if (headers.Count > 1)
+                return headers;
         }
     }
 }

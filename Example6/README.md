@@ -58,13 +58,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Queue
@@ -78,7 +78,7 @@ var queueName = channel.QueueDeclare().QueueName;
 ```csharp
 const string ExchangeName = "example6_trades_exchange";
 
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
 ```
 
 #### Step 5 - Create Binding
@@ -94,9 +94,9 @@ channel.QueueBind(
 #### Step 6 - Create Consumer
 
 ```csharp
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 
-consumer.Received += (sender, eventArgs) =>
+consumer.ReceivedAsync += async (sender, eventArgs) =>
 {
     var messageBody = eventArgs.Body.ToArray();
 
@@ -111,14 +111,14 @@ consumer.Received += (sender, eventArgs) =>
         .SetVirtualHost(connectionFactory.VirtualHost)
         .Display(Color.Yellow);
 
-    channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
+    await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
 };
 ```
 
 #### Step 7 - Consume Messages
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queueName,
     autoAck: false,
     consumer: consumer);
@@ -127,7 +127,7 @@ channel.BasicConsume(
 #### Step 8 - Send Acknowledgements (ACKS)
 
 ```csharp
-channel.BasicConsume(
+await channel.BasicConsumeAsync(
     queue: queue.QueueName,
     autoAck: false,
     consumer: consumer);
@@ -136,89 +136,92 @@ channel.BasicConsume(
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static readonly IReadOnlyList<string> MatchExpressions = ["all", "any"];
+
+private static async Task Main()
 {
-    private static readonly IReadOnlyList<string> MatchExpressions = new string[2] { "all", "any" };
+    Console.WriteLine("\nEXAMPLE 6 : HEADERS : CONSUMER");
 
-    private static void Main()
+    var headers = GetHeadersFromInput();
+
+    var connectionFactory = new ConnectionFactory
     {
-        Console.WriteLine("\nEXAMPLE 6 : HEADERS : CONSUMER");
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
 
-        var headers = GetHeadersFromInput();
+    using var connection = await connectionFactory.CreateConnectionAsync();
 
-        var connectionFactory = new ConnectionFactory
-        {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
-        };
+    using var channel = await connection.CreateChannelAsync();
 
-        using var connection = connectionFactory.CreateConnection();
+    var queue = await channel.QueueDeclareAsync();
 
-        using var channel = connection.CreateModel();
+    const string ExchangeName = "example6_trades_exchange";
 
-        var queue = channel.QueueDeclare();
+    await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
 
-        const string ExchangeName = "example6_trades_exchange";
+    await channel.QueueBindAsync(
+        queue: queue.QueueName,
+        exchange: ExchangeName,
+        routingKey: string.Empty,
+        arguments: headers);
 
-        channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
+    var consumer = new AsyncEventingBasicConsumer(channel);
 
-        channel.QueueBind(queue: queue.QueueName, exchange: ExchangeName, routingKey: string.Empty, arguments: headers);
-
-        var consumer = new EventingBasicConsumer(channel);
-
-        consumer.Received += (sender, eventArgs) =>
-        {
-            var messageBody = eventArgs.Body.ToArray();
-
-            var trade = Trade.FromBytes(messageBody);
-            
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(ExchangeName)
-                .SetHeaders(eventArgs.BasicProperties.Headers.ToDictionary(header => header.Key, header => header.Value))
-                .SetQueue(queue.QueueName)
-                .SetRoutingKey(eventArgs.RoutingKey)
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Yellow);
-
-            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-        };
-
-        channel.BasicConsume(
-            queue: queue.QueueName,
-            autoAck: false,
-            consumer: consumer);
-
-        Console.ReadLine();
-    }
-
-    private static Dictionary<string, object> GetHeadersFromInput()
+    consumer.ReceivedAsync += async (sender, eventArgs) =>
     {
-        var headers = new Dictionary<string, object>();
+        var messageBody = eventArgs.Body.ToArray();
 
-        while (true)
-        {
-            Console.Write("\nCreate subscription for 'all' or 'any' headers: ");
-            var matchExpression = Console.ReadLine()?.ToLower() ?? string.Empty;
-            if (!MatchExpressions.Contains(matchExpression))
-                continue;
+        var trade = Trade.FromBytes(messageBody);
 
-            headers.Add("x-match", matchExpression);
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(ExchangeName)
+            .SetHeaders(eventArgs.BasicProperties?.Headers?.ToDictionary(
+                header => header.Key,
+                header => (object)Encoding.UTF8.GetString((byte[])header.Value!)))
+            .SetQueue(queue.QueueName)
+            .SetRoutingKey(eventArgs.RoutingKey)
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Yellow);
 
-            Console.Write("\nEnter region (Australia, Great Britain, USA): ");
-            var region = Console.ReadLine() ?? "";
-            if (TradeData.ContainsRegion(region))
-                headers.Add("region", region);
+        await channel.BasicAckAsync(eventArgs.DeliveryTag, multiple: false);
+    };
 
-            Console.Write("Enter industry (Banking, Financial Services, Software): ");
-            var industry = Console.ReadLine() ?? "";
-            if (TradeData.ContainsIndustry(industry))
-                headers.Add("industry", industry);
+    await channel.BasicConsumeAsync(
+        queue: queue.QueueName,
+        autoAck: false,
+        consumer: consumer);
 
-            if (headers.Count > 1)
-                return headers;
-        }
+    Console.ReadLine();
+}
+
+private static Dictionary<string, object?> GetHeadersFromInput()
+{
+    var headers = new Dictionary<string, object?>();
+
+    while (true)
+    {
+        Console.Write("\nCreate subscription for 'all' or 'any' headers: ");
+        var matchExpression = Console.ReadLine()?.ToLower() ?? string.Empty;
+        if (!MatchExpressions.Contains(matchExpression))
+            continue;
+
+        headers.Add("x-match", matchExpression);
+
+        Console.Write("\nEnter region (Australia, Great Britain, USA): ");
+        var region = Console.ReadLine()?.ToLower() ?? "";
+        if (TradeData.ContainsRegion(region))
+            headers.Add("region", region);
+
+        Console.Write("Enter industry (Banking, Financial Services, Software): ");
+        var industry = Console.ReadLine()?.ToLower() ?? "";
+        if (TradeData.ContainsIndustry(industry))
+            headers.Add("industry", industry);
+
+        if (headers.Count > 1)
+            return headers;
     }
 }
 ```
@@ -235,13 +238,13 @@ var connectionFactory = new ConnectionFactory
     Password = "password"
 };
 
-using var connection = connectionFactory.CreateConnection();
+using var connection = await connectionFactory.CreateConnectionAsync();
 ```
 
 #### Step 2 - Create Channel
 
 ```csharp
-using var channel = connection.CreateModel();
+using var channel = await connection.CreateChannelAsync();
 ```
 
 #### Step 3 - Declare Exchange
@@ -249,7 +252,7 @@ using var channel = connection.CreateModel();
 ```csharp
 const string ExchangeName = "example6_trades_exchange";
 
-channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
+await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
 ```
 
 #### Step 4 - Create and Publish Message
@@ -257,14 +260,20 @@ channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
 ```csharp
 var trade = TradeData.GetFakeTrade();
 
-var properties = channel.CreateBasicProperties();
-properties.Headers = new Dictionary<string, object>();
-properties.Headers.Add("region", trade.NormalizedRegion);
-properties.Headers.Add("industry", trade.NormalizedIndustry);
+var properties = new BasicProperties
+{
+    Persistent = true,
+    Headers = new Dictionary<string, object?>
+    {
+        { "region", trade.NormalizedRegion },
+        { "industry", trade.NormalizedIndustry }
+    }
+};
 
-channel.BasicPublish(
+await channel.BasicPublishAsync(
     exchange: ExchangeName,
     routingKey: string.Empty,
+    mandatory: false,
     basicProperties: properties,
     body: trade.ToBytes());
 ```
@@ -272,51 +281,54 @@ channel.BasicPublish(
 #### Full Listing
 
 ```csharp
-internal sealed class Program
+private static async Task Main()
 {
-    private static async Task Main()
-    {
-        Console.WriteLine("EXAMPLE 6 : HEADERS : PRODUCER");
+    Console.WriteLine("EXAMPLE 6 : HEADERS : PRODUCER");
 
-        var connectionFactory = new ConnectionFactory
+    var connectionFactory = new ConnectionFactory
+    {
+        HostName = "localhost",
+        UserName = "admin",
+        Password = "password"
+    };
+
+    using var connection = await connectionFactory.CreateConnectionAsync();
+
+    using var channel = await connection.CreateChannelAsync();
+
+    const string ExchangeName = "example6_trades_exchange";
+
+    await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Headers);
+
+    while (true)
+    {
+        var trade = TradeData.GetFakeTrade();
+
+        var properties = new BasicProperties
         {
-            HostName = "localhost",
-            UserName = "admin",
-            Password = "password"
+            Persistent = true,
+            Headers = new Dictionary<string, object?>
+            {
+                { "region", trade.NormalizedRegion },
+                { "industry", trade.NormalizedIndustry }
+            }
         };
 
-        using var connection = connectionFactory.CreateConnection();
+        await channel.BasicPublishAsync(
+            exchange: ExchangeName,
+            routingKey: string.Empty,
+            mandatory: false,
+            basicProperties: properties,
+            body: trade.ToBytes());
 
-        using var channel = connection.CreateModel();
+        DisplayInfo<Trade>
+            .For(trade)
+            .SetExchange(ExchangeName)
+            .SetHeaders(properties.Headers.ToDictionary(header => header.Key, header => header.Value!))
+            .SetVirtualHost(connectionFactory.VirtualHost)
+            .Display(Color.Cyan);
 
-        const string ExchangeName = "example6_trades_exchange";
-
-        channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Headers);
-
-        while (true)
-        {
-            var trade = TradeData.GetFakeTrade();
-
-            var properties = channel.CreateBasicProperties();
-            properties.Headers = new Dictionary<string, object>();
-            properties.Headers.Add("region", trade.NormalizedRegion);
-            properties.Headers.Add("industry", trade.NormalizedIndustry);
-
-            channel.BasicPublish(
-                exchange: ExchangeName,
-                routingKey: string.Empty,
-                basicProperties: properties,
-                body: trade.ToBytes());
-            
-            DisplayInfo<Trade>
-                .For(trade)
-                .SetExchange(ExchangeName)
-                .SetHeaders(properties.Headers.ToDictionary(header => header.Key, header => header.Value))
-                .SetVirtualHost(connectionFactory.VirtualHost)
-                .Display(Color.Cyan);
-
-            await Task.Delay(millisecondsDelay: 5000);
-        }
+        await Task.Delay(millisecondsDelay: 5000);
     }
 }
 ```
@@ -325,44 +337,10 @@ internal sealed class Program
 
 ## Running the Example
 
-### Source Code Repository
-
-All the code required to run this example can be found on [Github](https://github.com/drminnaar/dotnet-rabbitmq)
-
-```bash
-
-git clone https://github.com/drminnaar/dotnet-rabbitmq.git
-
-```
-
-### Manage RabbitMQ Server
-
-For the example, RabbitMQ is hosted within a _Docker_ container.
-
-The example code repository includes a _'docker-compose'_ file that describes the RabbitMQ stack with a reasonable set of defaults. Use _docker-compose_ to start, stop and display information about the RabbitMQ stack as follows:
-
-```bash
-# Verify that 'docker-compose' is installed
-docker-compose --version
-
-# Start RabbitMQ stack in the background
-docker-compose up --detach
-
-# Verify that RabbitMQ container is running
-docker-compose ps
-
-# Display RabbitMQ logs
-docker-compose logs
-
-# Display and follow RabbitMQ logs
-docker-compose logs --tail="all" --follow
-
-# Tear down RabbitMQ stack
-# Remove named volumes declared in the `volumes`
-# section of the Compose file and anonymous volumes
-# attached to container
-docker-compose down --volumes
-```
+> [!NOTE]
+> &nbsp;  
+> See [RabbitMQ Quickstart](/quickstart.md).  
+> &nbsp;  
 
 ### Start Producer
 

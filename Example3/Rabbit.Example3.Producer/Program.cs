@@ -6,51 +6,50 @@ using Rabbit.Common.Data.Weather;
 using Rabbit.Common.Display;
 using RabbitMQ.Client;
 
-namespace Rabbit.Example3.Producer
+namespace Rabbit.Example3.Producer;
+
+internal sealed class Program
 {
-    internal sealed class Program
+    private static async Task Main()
     {
-        private static async Task Main()
+        Console.WriteLine($"\nEXAMPLE 3 : PUB/SUB : PRODUCER)");
+
+        var connectionFactory = new ConnectionFactory
         {
-            Console.WriteLine($"\nEXAMPLE 3 : PUB/SUB : PRODUCER)");
+            HostName = "localhost",
+            UserName = "admin",
+            Password = "password"
+        };
 
-            var connectionFactory = new ConnectionFactory
-            {
-                HostName = "localhost",
-                UserName = "admin",
-                Password = "password"
-            };
+        using var connection = await connectionFactory.CreateConnectionAsync();
 
-            using var connection = connectionFactory.CreateConnection();
+        using var channel = await connection.CreateChannelAsync();
 
-            using var channel = connection.CreateModel();
+        const string QueueName = "";
 
-            const string QueueName = "";
+        const string ExchangeName = "example3_forecasts_exchange";
 
-            const string ExchangeName = "example3_forecasts_exchange";
+        await channel.ExchangeDeclareAsync(exchange: ExchangeName, type: ExchangeType.Fanout);
 
-            channel.ExchangeDeclare(exchange: ExchangeName, type: ExchangeType.Fanout);
+        while (true)
+        {
+            var forecast = Thermometer.Fake().Report();
 
-            while (true)
-            {
-                var forecast = Thermometer.Fake().Report();
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: QueueName,
+                body: Encoding.UTF8.GetBytes(forecast.ToJson())
+            );
 
-                channel.BasicPublish(
-                    exchange: ExchangeName,
-                    routingKey: QueueName,
-                    body: Encoding.UTF8.GetBytes(forecast.ToJson())
-                );
+            DisplayInfo<Forecast>
+                .For(forecast)
+                .SetExchange(ExchangeName)
+                .SetQueue(QueueName)
+                .SetRoutingKey(QueueName)
+                .SetVirtualHost(connectionFactory.VirtualHost)
+                .Display(Color.Cyan);
 
-                DisplayInfo<Forecast>
-                    .For(forecast)
-                    .SetExchange(ExchangeName)
-                    .SetQueue(QueueName)
-                    .SetRoutingKey(QueueName)
-                    .SetVirtualHost(connectionFactory.VirtualHost)
-                    .Display(Color.Cyan);
-
-                await Task.Delay(millisecondsDelay: 3000);
-            }
+            await Task.Delay(millisecondsDelay: 3000);
         }
     }
 }
