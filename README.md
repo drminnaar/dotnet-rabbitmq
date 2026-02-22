@@ -392,7 +392,7 @@ Please find the install for your platform (OS) of choice.
 
 ### CloudAMQP
 
-This is the easiest way to get up and rinning with RabbitMQ. No installation or setup is required. Run a free instance in the cloud using [CloudAMQP](https://www.cloudamqp.com). See the following links:
+This is the easiest way to get up and running with RabbitMQ. No installation or setup is required. Run a free instance in the cloud using [CloudAMQP](https://www.cloudamqp.com). See the following links:
 
 - [CloudAMQP Plans]
 - [CloudAMQP Free Plan]
